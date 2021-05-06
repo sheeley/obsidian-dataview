@@ -1,0 +1,1 @@
+(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[94],{8002:function(a){"use strict";a.exports=JSON.parse('{"allTagsPath":"/obsidian-dataview/blog/tags","slug":"documentation","name":"documentation","count":1,"permalink":"/obsidian-dataview/blog/tags/documentation"}')}}]);

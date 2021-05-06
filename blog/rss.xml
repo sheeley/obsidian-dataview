@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+    <channel>
+        <title>Dataview Blog</title>
+        <link>https://blacksmithgu.github.io/blog</link>
+        <description>Dataview Blog</description>
+        <lastBuildDate>Wed, 05 May 2021 00:00:00 GMT</lastBuildDate>
+        <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+        <generator>https://github.com/jpmonette/feed</generator>
+        <item>
+            <title><![CDATA[0.3.0 & What's Next]]></title>
+            <link>https://blacksmithgu.github.io/obsidian-dataview/blog/2021-05-05-whats-next</link>
+            <guid>2021-05-05-whats-next</guid>
+            <pubDate>Wed, 05 May 2021 00:00:00 GMT</pubDate>
+            <description><![CDATA[Dataview has been quiet for a few weeks, and the bugs have been piling on - worry not, I am not dead yet! This release]]></description>
+        </item>
+        <item>
+            <title><![CDATA[Docusaurus]]></title>
+            <link>https://blacksmithgu.github.io/obsidian-dataview/blog/newdocs</link>
+            <guid>newdocs</guid>
+            <pubDate>Sun, 02 May 2021 00:00:00 GMT</pubDate>
+            <description><![CDATA[Dataview now uses Docusaurus for documentation! Improved documentation forthcoming.]]></description>
+        </item>
+    </channel>
+</rss>

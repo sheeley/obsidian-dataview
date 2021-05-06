@@ -1,0 +1,1 @@
+(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[457],{6353:function(e){"use strict";e.exports=JSON.parse('{"title":"Recent posts","items":[{"title":"0.3.0 & What\'s Next","permalink":"/obsidian-dataview/blog/2021-05-05-whats-next"},{"title":"Docusaurus","permalink":"/obsidian-dataview/blog/newdocs"}]}')}}]);
