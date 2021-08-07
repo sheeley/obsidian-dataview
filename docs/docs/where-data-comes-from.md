@@ -2,7 +2,7 @@
 sidebar_position: 2
 ---
 
-# Pages and Fields
+# Pages, Tasks, and Fields
 
 The core data abstraction for dataview is the *page*, corresponding to a markdown page in your vault with associated
 *fields*. A *field* is just a piece of arbitrary named data - text, dates, durations, links - which dataview
@@ -75,3 +75,34 @@ Dataview automatically adds a large amount of metadata to each page:
 If the file has a date inside its title (of form `yyyy-mm-dd` or `yyyymmdd`), or has a `Date` field/inline field, it also has the following attributes:
 
 - `file.day`: An explicit date associated with the file.
+
+
+## Tasks
+Tasks have their own fields, inherit from pages and ancestor tasks, and can override inherited values.
+
+### Task-Specific Fields
+
+- `completed`: The completion status of the task (boolean)
+- `compday`: The day a task was completed. Declared using `✅YYYY-MM-DD` in the task
+- `etags`: Tags included in the task's text
+- `file`: The file the task exists within.
+- `header`: Text of the parent header
+- `link`: A link directly to the task within its enclosed file
+<!-- - `repeating`: Indicates whether a task is repeating or not (boolean) Declared using `🔁` in the task -->
+- `scheduleday`: The day a task is scheduled for. Declared using `📅YYYY-MM-DD` in the task
+
+### Inherited Fields
+These are inherited from the page where the task exists. For additional fields, use `task.file`
+
+- `cday`
+- `ctime`
+- `day`
+- `folder`
+- `mday`
+- `tags`
+
+### Overridable Fields
+Specifying these values within a task enables overriding the value inherited from the page.
+
+- `cday`: Override by including `➕YYYY-MM-DD` in the task
+- `mday`: Override by including `🔼YYYY-MM-DD` in the task
