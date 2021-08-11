@@ -46,6 +46,12 @@ export interface Task {
     real: boolean;
 	/** Any subtasks of this task. */
 	subtasks: Task[];
+    /** An explicitly defined date of completion */
+    completedDate?: DateTime; 
+    /** An explicitly defined date of creation */
+    createdDate?: DateTime;
+    /** An explicitly defined due date */
+    dueDate?: DateTime;
 }
 
 export namespace Task {
@@ -358,6 +364,11 @@ export function alast<T>(arr: Array<T>): T | undefined {
     else return undefined;
 }
 
+
+export const CREATED_DATE_REGEX = /\u{2795}\s*(\d{4}-\d{2}-\d{2})/u;
+export const DUE_DATE_REGEX = /[\u{1F4C5}\u{1F4C6}\u{1F5D3}]\s*(\d{4}-\d{2}-\d{2})/u;
+export const DONE_DATE_REGEX = /\u{2705}\s*(\d{4}-\d{2}-\d{2})/u;
+
 /**
  * A hacky approach to scanning for all tasks using regex. Does not support multiline
  * tasks yet (though can probably be retro-fitted to do so).
@@ -386,12 +397,33 @@ export function findTasksInFile(path: string, file: string): Task[] {
             continue;
         }
 
+        let createdMatch = CREATED_DATE_REGEX.exec(line)
+        let createdDate
+        if (createdMatch) {
+            createdDate = DateTime.fromISO(createdMatch[1])
+        }
+
+        let dueMatch = DUE_DATE_REGEX.exec(line)
+        let dueDate
+        if (dueMatch) {
+            dueDate = DateTime.fromISO(dueMatch[1])
+        }
+
+        let completedMatch = DONE_DATE_REGEX.exec(line)
+        let completedDate
+        if (completedMatch) {
+            completedDate = DateTime.fromISO(completedMatch[1])
+        }
+
 		let indent = match[1].replace("\t" , "    ").length;
         let isReal = !!match[2] && match[2].trim().length > 0;
         let isCompleted = !isReal || (match[2] == '[X]' || match[2] == '[x]');
 		let task: Task = {
 			text: match[3],
 			completed: isCompleted,
+            completedDate: completedDate,
+            createdDate: createdDate,
+            dueDate: dueDate,
             fullyCompleted: isCompleted,
             real: isReal,
             path,
