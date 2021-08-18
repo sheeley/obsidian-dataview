@@ -2,14 +2,15 @@
  * Takes a full query and a set of indices, and (hopefully quickly) returns all relevant files.
  */
 import { FullIndex } from 'src/data/index';
-import { Task } from 'src/data/file';
 import { Context, LinkHandler } from 'src/expression/context';
 import { resolveSource, Datarow } from 'src/data/resolver';
-import { DataObject, LiteralValue, Values } from 'src/data/value';
+import { PageMetadata } from 'src/data/file';
+import { DataObject, LiteralValue, Values, Task } from 'src/data/value';
 import { ListQuery, Query, QueryOperation, TableQuery } from 'src/query/query';
 import { Result } from 'src/api/result';
 import { Field } from 'src/expression/field';
 import { QuerySettings } from 'src/settings';
+import { DateTime } from 'luxon';
 
 function iden<T>(x: T): T { return x; }
 
@@ -317,7 +318,6 @@ export interface TaskExecution {
 export function executeTask(query: Query, origin: string, index: FullIndex, settings: QuerySettings): Result<TaskExecution, string> {
     // This is a somewhat silly way to do this for now; call into regular execute on the full query,
     // yielding a list of files. Then map the files to their tasks.
-    // TODO: Consider per-task or per-task-block filtering via a more nuanced algorithm.
     let fileset = resolveSource(query.source, index, origin);
     if (!fileset.successful) return Result.failure(fileset.error);
 
@@ -326,15 +326,33 @@ export function executeTask(query: Query, origin: string, index: FullIndex, sett
         settings,
         { "this": index.pages.get(origin)?.toObject(index) ?? {} });
 
-    return executeCoreExtract(fileset.value, rootContext, query.operations, {}).map(core => {
+    // eliminate WHERE filters for pages. They only respect filters using FROM, 
+    // otherwise task-specific properties filter out pages unintentionally
+    let pageOps = query.operations.filter(op => op.type != "where")
+
+    return executeCoreExtract(fileset.value, rootContext, pageOps, {}).map(core => {
         let realResult = new Map<string, Task[]>();
         for (let row of core.data) {
             if (!Values.isLink(row.id)) continue;
 
-            let tasks = index.pages.get(row.id.path)?.tasks;
-            if (tasks == undefined || tasks.length == 0) continue;
+            let page = index.pages.get(row.id.path)
+            if (page == undefined) { continue } 
+            
+            let tasks = page.tasks;
+            if (tasks == undefined) { continue }
 
-            realResult.set(row.id.path, tasks);
+            console.log(`${tasks.length} tasks`)
+            
+            // Per-task filtering
+            // TODO: Consider per-task-block filtering via a more nuanced algorithm.
+            let filteredTasks = filterTasks(page, core.data, tasks, rootContext, query.operations)
+            if (filteredTasks.successful) {
+                console.log(`${filteredTasks.value.tasks.entries.length} filteredTasks`)
+                let taskMap = filteredTasks.value.tasks
+                for (let [path, tasks] of taskMap) {
+                    realResult.set(path, tasks)
+                }
+            }
         }
 
         return {
@@ -342,6 +360,76 @@ export function executeTask(query: Query, origin: string, index: FullIndex, sett
             tasks: realResult
         };
     });
+}
+
+/** Shared execution code which just takes in arbitrary data, runs operations over it, and returns it + per-row errors. */
+export function filterTasks(page: PageMetadata, pages: Pagerow[], rows: Task[], context: Context, ops: QueryOperation[]): Result<TaskExecution, string> {
+    let diagnostics = [];
+    let identMeaning: IdentifierMeaning = { type: 'path' };
+    let startTime = new Date().getTime();
+
+    for (let op of ops) {
+        let opStartTime = new Date().getTime();
+        let incomingRows = rows.length;
+        let errors: { index: number, message: string }[] = [];
+
+        switch (op.type) {
+            case "where":
+                let whereResult: Task[] = [];
+                for (let index = 0; index < rows.length; index++) {
+                    let row = rows[index];
+                    // copy all page metadata, and set a default createdDate to the file's creation date
+                    let defaultsFromPage = {
+                        createdDate: DateTime.fromObject({year: page.ctime.year, month: page.ctime.month, day: page.ctime.day}),
+                        completedDate: row.completed ? DateTime.fromObject({year: page.mtime.year, month: page.mtime.month, day: page.mtime.day}) : null
+                    }
+
+                    // TODO: sheeley date comparison is not working correctly
+                    let fullMetadata = Object.assign({}, page, defaultsFromPage, row)
+                    let value = context.evaluate(op.clause, fullMetadata);
+                    if (!value.successful) errors.push({ index, message: value.error });
+                    else if (Values.isTruthy(value.value)) whereResult.push(row);
+                }
+
+                rows = whereResult;
+                break;
+            default:
+                return Result.failure("Unrecognized query operation '" + op.type + "'");
+        }
+
+        if (errors.length >= incomingRows && incomingRows > 0) {
+            return Result.failure(`Every row during operation '${op.type}' failed with an error; first ${Math.min(3, errors.length)}:\n
+                ${errors.slice(0, 3).map(d => "- " + d.message).join("\n")}`);
+        }
+
+        diagnostics.push({
+            incomingRows,
+            errors,
+            outgoingRows: rows.length,
+            timeMs: new Date().getTime() - opStartTime,
+        });
+    }
+    
+    let allTasks = new Map<string, Task[]>()
+    for (let task of rows) {
+        let path = task.path
+        let tasks = allTasks.get(task.path) || []
+        tasks.push(task)
+        allTasks.set(path, tasks)
+    }
+
+    let res: TaskExecution = {
+        core: {
+            data: pages,
+            idMeaning: identMeaning,
+            ops,
+            diagnostics,
+            timeMs: new Date().getTime() - startTime,
+        }, 
+        tasks: allTasks
+    }
+
+    return Result.success(res);
 }
 
 /** Execute a single field inline a file, returning the evaluated result. */
